@@ -1,0 +1,51 @@
+name: Daily learning reminder
+
+on:
+  schedule:
+    # 07:00 UTC = 07:00 Accra (GMT) every day
+    - cron: "0 7 * * *"
+  workflow_dispatch: # run manually from Actions tab
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create today's reminder issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const today = new Date().toISOString().slice(0, 10);
+            const title = `Learning note for ${today}`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: ["daily-learning"],
+              per_page: 20,
+            });
+
+            if (existing.data.some(i => i.title === title)) {
+              console.log("Reminder already exists for today");
+              return;
+            }
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ["daily-learning"],
+              body: [
+                `### Today's learning note`,
+                ``,
+                `1. Copy [\`TEMPLATE.md\`](../blob/main/TEMPLATE.md)`,
+                `2. Create [\`notes/${today}.md\`](../new/main/notes?filename=${today}.md)`,
+                `3. Fill in what you learned / practiced / your key takeaway`,
+                `4. Commit, push, then **close this issue**`,
+                ``,
+                `Keep it short — 5–10 minutes is enough.`,
+              ].join("\n"),
+            });
